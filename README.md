@@ -12,6 +12,12 @@ A desktop application for commissioning and controlling [Matter](https://csa-iot
 - **Send commands** to any cluster on any endpoint
 - **Write attributes** directly to a device with full control over value type
 
+## Screenshots
+
+![Devices view](docs/screenshots/devices.png)
+
+![Control view](docs/screenshots/control.png)
+
 ## Download
 
 Download the latest release from the [Releases](../../releases) page and pick the package for your platform:
