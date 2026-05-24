@@ -1,3 +1,4 @@
+pub mod acl;
 pub mod attributes;
 pub mod clusters;
 pub mod commission;

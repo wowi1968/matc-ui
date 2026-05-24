@@ -11,6 +11,7 @@ A desktop application for commissioning and controlling [Matter](https://csa-iot
 - **Control** lights, dimmers, and other controllable devices directly from the UI
 - **Send commands** to any cluster on any endpoint
 - **Write attributes** directly to a device with full control over value type
+- **Manage access control** -- read and edit the ACL table on any device to control which nodes and groups can access which clusters and endpoints
 
 ## Screenshots
 

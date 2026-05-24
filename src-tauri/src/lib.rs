@@ -8,6 +8,7 @@ mod logging;
 mod state;
 
 use commands::{
+    acl::{read_acl, write_acl},
     attributes::{
         read_attribute_tree, read_device_tree, read_endpoint_structure, read_single_attribute,
     },
@@ -160,6 +161,8 @@ pub fn run() {
             get_command_schema,
             get_device_type_name,
             write_attribute,
+            read_acl,
+            write_acl,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

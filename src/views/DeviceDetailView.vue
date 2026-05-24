@@ -9,6 +9,7 @@ import CommandPanel from '../components/CommandPanel.vue'
 import WritePanel from '../components/WritePanel.vue'
 import DeviceTreePanel from '../components/DeviceTreePanel.vue'
 import DeviceInfoPanel from '../components/DeviceInfoPanel.vue'
+import AccessControlPanel from '../components/AccessControlPanel.vue'
 import { useDevicesStore } from '../stores/devices'
 import { hasAggregator } from '../utils/deviceTree'
 
@@ -143,6 +144,7 @@ async function loadDeviceTree(forceRefresh = false) {
 }
 
 const activeTab = ref<string>('info')
+const aclPanel = ref<InstanceType<typeof AccessControlPanel> | null>(null)
 
 const isBusy = computed(() =>
   loading.value || deviceTreeLoading.value || store.deviceStatus[nodeId] === 'checking'
@@ -175,6 +177,8 @@ async function refresh() {
   } else if (activeTab.value === 'device-tree') {
     deviceTreeData.value = null
     await loadDeviceTree(true)
+  } else if (activeTab.value === 'acl') {
+    await aclPanel.value?.reload()
   } else {
     await store.fetchDeviceInfo(nodeId, true).catch(() => {})
   }
@@ -303,6 +307,9 @@ onMounted(async () => {
       </n-tab-pane>
       <n-tab-pane name="write" tab="Write">
         <WritePanel :node-id="nodeId" :tree="commandsTree" />
+      </n-tab-pane>
+      <n-tab-pane name="acl" tab="Access Control">
+        <AccessControlPanel ref="aclPanel" :node-id="nodeId" />
       </n-tab-pane>
       <n-tab-pane v-if="showDeviceTree" name="device-tree" tab="Device Tree">
         <DeviceTreePanel v-if="tree ?? deviceTreeData" :tree="(tree ?? deviceTreeData)!" />

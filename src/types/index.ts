@@ -118,6 +118,21 @@ export type InvokeResult =
   | { kind: 'status'; code: number }
   | { kind: 'data'; tlv: string }
 
+export interface AclTarget {
+  cluster: number | null
+  endpoint: number | null
+  device_type: number | null
+}
+
+export interface AclEntry {
+  privilege: number | null
+  auth_mode: number | null
+  /** Subject node IDs as decimal strings to avoid u64 precision loss. */
+  subjects: string[]
+  targets: AclTarget[]
+  fabric_index: number | null
+}
+
 export interface OpenCommissioningWindowResult {
   status: number
   manual_pairing_code: string
