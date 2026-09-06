@@ -138,14 +138,34 @@ pub async fn commission_ble(
     pairing_code: String,
     node_id: u64,
     name: String,
-    wifi_ssid: String,
-    wifi_password: String,
+    network_type: String,
+    wifi_ssid: Option<String>,
+    wifi_password: Option<String>,
+    thread_dataset: Option<String>,
 ) -> Result<DeviceDto, String> {
     use matc::NetworkCreds;
 
-    let creds = NetworkCreds::WiFi {
-        ssid: wifi_ssid.into(),
-        creds: wifi_password.into(),
+    let creds = match network_type.as_str() {
+        "thread" => {
+            let dataset_hex = thread_dataset
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| "Thread operational dataset is required".to_string())?;
+            let dataset = hex::decode(dataset_hex)
+                .map_err(|e| format!("invalid Thread dataset hex: {}", e))?;
+            NetworkCreds::Thread { dataset }
+        }
+        "wifi" => {
+            let ssid = wifi_ssid
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| "Wi-Fi SSID is required".to_string())?;
+            NetworkCreds::WiFi {
+                ssid: ssid.into(),
+                creds: wifi_password.unwrap_or_default().into(),
+            }
+        }
+        other => return Err(format!("unknown network type: {}", other)),
     };
     let state = state.inner().clone();
     log::info!("commission_ble: node={} name={}", node_id, name);

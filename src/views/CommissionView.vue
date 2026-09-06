@@ -12,13 +12,16 @@ const devicesStore = useDevicesStore()
 
 // Pairing code tab state
 type CodeTransport = 'network' | 'network_manual' | 'ble'
+type BleNetwork = 'wifi' | 'thread'
 const codeForm = ref({
   pairing_code: '',
   name: '',
   node_id: 300,
   transport: 'network' as CodeTransport,
+  network_type: 'wifi' as BleNetwork,
   wifi_ssid: '',
   wifi_password: '',
+  thread_dataset: '',
   ip_address: '',
   pin: 0,
 })
@@ -66,7 +69,10 @@ const codeSubmitDisabled = computed(() => {
     return !codeForm.value.ip_address.trim() || codeForm.value.pin <= 0
   }
   if (!codeForm.value.pairing_code) return true
-  if (codeForm.value.transport === 'ble' && !codeForm.value.wifi_ssid) return true
+  if (codeForm.value.transport === 'ble') {
+    if (codeForm.value.network_type === 'wifi' && !codeForm.value.wifi_ssid) return true
+    if (codeForm.value.network_type === 'thread' && !codeForm.value.thread_dataset.trim()) return true
+  }
   return false
 })
 
@@ -82,8 +88,10 @@ async function submitByCode() {
         pairingCode: codeForm.value.pairing_code.trim(),
         nodeId,
         name,
+        networkType: codeForm.value.network_type,
         wifiSsid: codeForm.value.wifi_ssid,
         wifiPassword: codeForm.value.wifi_password,
+        threadDataset: codeForm.value.thread_dataset.trim(),
       })
     } else if (codeForm.value.transport === 'network_manual') {
       await invoke('commission_by_address', {
@@ -125,21 +133,21 @@ const filteredMdns = computed(() => {
 // Commission dialog state (shared by mDNS and BLE)
 const showCommissionDialog = ref(false)
 const commissionTarget = ref<{ address?: string; addresses?: string[]; isBle?: boolean } | null>(null)
-const commissionForm = ref({ name: '', node_id: 300, pin: 0, pairing_code: '', wifi_ssid: '', wifi_password: '' })
+const commissionForm = ref({ name: '', node_id: 300, pin: 0, pairing_code: '', network_type: 'wifi' as BleNetwork, wifi_ssid: '', wifi_password: '', thread_dataset: '' })
 const commissioning = ref(false)
 const commissionError = ref<string | null>(null)
 
 function openCommission(device: DiscoveredDeviceDto) {
   const allAddresses = device.addresses.map(a => formatAddrWithPort(a, device.port))
   commissionTarget.value = { addresses: allAddresses, address: allAddresses[0], isBle: false }
-  commissionForm.value = { name: device.name ?? '', node_id: 300, pin: 0, pairing_code: '', wifi_ssid: '', wifi_password: '' }
+  commissionForm.value = { name: device.name ?? '', node_id: 300, pin: 0, pairing_code: '', network_type: 'wifi', wifi_ssid: '', wifi_password: '', thread_dataset: '' }
   commissionError.value = null
   showCommissionDialog.value = true
 }
 
 function openCommissionBle(device: BleDeviceDto) {
   commissionTarget.value = { isBle: true }
-  commissionForm.value = { name: device.name ?? '', node_id: 300, pin: 0, pairing_code: '', wifi_ssid: '', wifi_password: '' }
+  commissionForm.value = { name: device.name ?? '', node_id: 300, pin: 0, pairing_code: '', network_type: 'wifi', wifi_ssid: '', wifi_password: '', thread_dataset: '' }
   commissionError.value = null
   showCommissionDialog.value = true
 }
@@ -148,7 +156,7 @@ async function doCommission() {
   commissioning.value = true
   commissionError.value = null
   try {
-    const { name, node_id: nodeId, pin, wifi_ssid: wifiSsid, wifi_password: wifiPassword } = commissionForm.value
+    const { name, node_id: nodeId, pin } = commissionForm.value
     const target = commissionTarget.value!
 
     if (target.isBle) {
@@ -156,8 +164,10 @@ async function doCommission() {
         pairingCode: commissionForm.value.pairing_code,
         nodeId,
         name,
-        wifiSsid,
-        wifiPassword,
+        networkType: commissionForm.value.network_type,
+        wifiSsid: commissionForm.value.wifi_ssid,
+        wifiPassword: commissionForm.value.wifi_password,
+        threadDataset: commissionForm.value.thread_dataset.trim(),
       })
     } else if (target.address && pin > 0) {
       await invoke('commission_by_address', { address: target.address, pin, nodeId, name })
@@ -240,25 +250,47 @@ async function doCommission() {
             </template>
 
             <template v-if="codeForm.transport === 'ble'">
-              <n-form-item label="Wi-Fi SSID" required>
-                <n-input
-                  v-model:value="codeForm.wifi_ssid"
-                  placeholder="Home network"
-                  :disabled="codeLoading"
-                />
+              <n-form-item label="Network Type">
+                <n-radio-group v-model:value="codeForm.network_type" :disabled="codeLoading">
+                  <n-radio-button value="wifi">Wi-Fi</n-radio-button>
+                  <n-radio-button value="thread">Thread</n-radio-button>
+                </n-radio-group>
               </n-form-item>
-              <n-form-item label="Wi-Fi Password">
-                <n-input
-                  v-model:value="codeForm.wifi_password"
-                  type="password"
-                  :disabled="codeLoading"
-                />
-              </n-form-item>
+
+              <template v-if="codeForm.network_type === 'wifi'">
+                <n-form-item label="Wi-Fi SSID" required>
+                  <n-input
+                    v-model:value="codeForm.wifi_ssid"
+                    placeholder="Home network"
+                    :disabled="codeLoading"
+                  />
+                </n-form-item>
+                <n-form-item label="Wi-Fi Password">
+                  <n-input
+                    v-model:value="codeForm.wifi_password"
+                    type="password"
+                    :disabled="codeLoading"
+                  />
+                </n-form-item>
+              </template>
+
+              <template v-else>
+                <n-form-item label="Thread Operational Dataset (hex)" required>
+                  <n-input
+                    v-model:value="codeForm.thread_dataset"
+                    type="textarea"
+                    :autosize="{ minRows: 2, maxRows: 4 }"
+                    placeholder="e.g. 0e080000000000010000..."
+                    :disabled="codeLoading"
+                  />
+                </n-form-item>
+              </template>
             </template>
 
             <n-text depth="3" style="font-size: 12px; display: block; margin-bottom: 16px">
               <template v-if="codeForm.transport === 'ble'">
-                The device will be reached over Bluetooth and provisioned with the supplied Wi-Fi credentials.
+                The device will be reached over Bluetooth and provisioned with the supplied
+                {{ codeForm.network_type === 'thread' ? 'Thread' : 'Wi-Fi' }} credentials.
                 Make sure Bluetooth is enabled and the device is in commissioning mode.
               </template>
               <template v-else-if="codeForm.transport === 'network_manual'">
@@ -406,11 +438,27 @@ async function doCommission() {
           <n-form-item label="Pairing Code">
             <n-input v-model:value="commissionForm.pairing_code" placeholder="e.g. 0251-520-0076" />
           </n-form-item>
-          <n-form-item label="Wi-Fi SSID">
-            <n-input v-model:value="commissionForm.wifi_ssid" placeholder="Home network" />
+          <n-form-item label="Network Type">
+            <n-radio-group v-model:value="commissionForm.network_type">
+              <n-radio-button value="wifi">Wi-Fi</n-radio-button>
+              <n-radio-button value="thread">Thread</n-radio-button>
+            </n-radio-group>
           </n-form-item>
-          <n-form-item label="Wi-Fi Password">
-            <n-input v-model:value="commissionForm.wifi_password" type="password" />
+          <template v-if="commissionForm.network_type === 'wifi'">
+            <n-form-item label="Wi-Fi SSID">
+              <n-input v-model:value="commissionForm.wifi_ssid" placeholder="Home network" />
+            </n-form-item>
+            <n-form-item label="Wi-Fi Password">
+              <n-input v-model:value="commissionForm.wifi_password" type="password" />
+            </n-form-item>
+          </template>
+          <n-form-item v-else label="Thread Operational Dataset (hex)">
+            <n-input
+              v-model:value="commissionForm.thread_dataset"
+              type="textarea"
+              :autosize="{ minRows: 2, maxRows: 4 }"
+              placeholder="e.g. 0e080000000000010000..."
+            />
           </n-form-item>
         </template>
       </n-form>

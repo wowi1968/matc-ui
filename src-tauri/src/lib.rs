@@ -103,7 +103,7 @@ pub fn run() {
                         let config = ManagerConfig {
                             fabric_id: 1000,
                             controller_id: 100,
-                            local_address: "0.0.0.0:5555".to_string(),
+                            local_address: "[::]:5555".to_string(),
                         };
                         DeviceManager::create(&data_path, config)
                             .await
